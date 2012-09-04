@@ -1,4 +1,5 @@
 (ns clj-crypto.core
+  (:refer-clojure :exclude [format])
   (:require [clojure.tools.logging :as logging])
   (:import [org.apache.commons.codec.binary Base64]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
