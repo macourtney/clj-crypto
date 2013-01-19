@@ -1,6 +1,6 @@
 # clj-crypto
 
-FIXME: write description
+The clj-crypto library is a Clojure wrapper for the Java Bouncy Castle encryption library.
 
 ## Usage
 
