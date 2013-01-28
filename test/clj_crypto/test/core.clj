@@ -1,4 +1,5 @@
 (ns clj-crypto.test.core
+  (:refer-clojure :exclude [format])
   (:use [clj-crypto.core]
         [clojure.test])
   (:import [java.security KeyPair]))
@@ -12,20 +13,6 @@
       (let [decrypted-text (decrypt key-pair encrypted-text)]
         (is decrypted-text "decrypted-text is nil, but expected non-nil.")
         (is (= decrypted-text data) (str "Text not decrypted."))))))
-
-(deftest password-encrypt-decrypt
-  (let [password "password"
-        data "secret text"
-        algorithm des-algorithm
-        encrypted-data (password-encrypt password data algorithm)]
-    (is (not (= data encrypted-data)) "Text not encrypted.")
-    (is (= data (password-decrypt password encrypted-data algorithm)) "Text not decrypted."))
-  (let [password "password blah blah blah blah blah blah blah blah"
-        data "secret text"
-        algorithm des-algorithm
-        encrypted-data (password-encrypt password data algorithm)]
-    (is (not (= data encrypted-data)) "Text not encrypted.")
-    (is (= data (password-decrypt password encrypted-data algorithm)) "Text not decrypted.")))
 
 (deftest basic-password-protection
   (let [password "password"

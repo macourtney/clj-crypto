@@ -1,17 +1,12 @@
 (ns clj-crypto.core
+  (:refer-clojure :exclude [format])
   (:require [clojure.tools.logging :as logging])
   (:import [org.apache.commons.codec.binary Base64]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [java.security KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature]
            [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
            [java.util Random]
-           [javax.crypto Cipher SecretKeyFactory]
-           [javax.crypto.spec SecretKeySpec]))
-
-
-(def des-algorithm "DES")
-
-(def default-symmetrical-algorithm des-algorithm)
+           [javax.crypto Cipher]))
 
 (def default-algorithm "RSA")
 (def default-signature-algorithm "SHA1withRSA")
@@ -45,7 +40,7 @@
   (cond
     (instance? KeyPair key) (public-key key)
     (instance? PublicKey key) key
-    true (throw (RuntimeException. (str "Don't know how to convert to public key: " key)))))
+    :else (throw (RuntimeException. (str "Don't know how to convert to public key: " key)))))
 
 (defn algorithm [key]
   (.getAlgorithm key))
@@ -148,35 +143,6 @@
     (.initVerify signature-obj public-key)
     (.update signature-obj (get-data-bytes data))
     (.verify signature-obj (get-data-bytes signature))))
-
-;http://stackoverflow.com/questions/339004/java-encrypt-decrypt-user-name-and-password-from-a-configuration-file
-(defn des-cipher
-  ([] (des-cipher default-symmetrical-algorithm))
-  ([algorithm]
-    (create-cipher algorithm)))
-
-(defn prepare-password [password]
-  (let [message-digest (MessageDigest/getInstance default-encrypt-password-algorithm)]
-    (.reset message-digest)
-    (into-array Byte/TYPE (take 8 (.digest message-digest (get-data-bytes password))))))
-
-(defn key-spec [password algorithm]
-  (SecretKeySpec. (prepare-password password) algorithm))
-
-(defn des-key
-  ([password] (des-key password default-symmetrical-algorithm))
-  ([password algorithm]
-    (.generateSecret (SecretKeyFactory/getInstance algorithm) (key-spec password algorithm))))
-
-(defn password-encrypt
-  ([password data] (password-encrypt password data default-symmetrical-algorithm))
-  ([password data algorithm]
-    (encrypt (des-key password algorithm) data (des-cipher algorithm))))
-
-(defn password-decrypt
-  ([password data] (password-decrypt password data default-symmetrical-algorithm))
-  ([password data algorithm]
-    (decrypt (des-key password algorithm) data (des-cipher algorithm))))
 
 ; Basic password protection
 (defn
