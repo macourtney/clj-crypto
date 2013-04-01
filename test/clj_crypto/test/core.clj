@@ -19,7 +19,8 @@
         salt 2079324
         algorithm default-encrypt-password-algorithm
         n default-encrypt-password-n
-        encrypted-password (encrypt-password-string password salt algorithm n)]
+        encrypted-password (encrypt-password-string password salt algorithm n)
+        ]
     (is (not (= encrypted-password password)) "Password not encrypted") 
     (is (= encrypted-password (encrypt-password-string password salt algorithm n)) "Password check not valid.")
     (is (not (= encrypted-password (encrypt-password-string password salt algorithm 1))) "Multiple hash iterations do not help.")

@@ -21,8 +21,8 @@
 
 (defn generate-key-pair []
   (let [key-pair-generator (KeyPairGenerator/getInstance default-algorithm)]
-     (.initialize key-pair-generator 1024)
-     (.generateKeyPair key-pair-generator)))
+    (.initialize key-pair-generator 1024)
+    (.generateKeyPair key-pair-generator)))
 
 (defn private-key [key-pair]
   (.getPrivate key-pair))
@@ -65,12 +65,17 @@
 
 (defn integer-bytes [integer]
   (byte-array [(integer-byte integer 3) (integer-byte integer 2) (integer-byte integer 1) (integer-byte integer 0)]))
+  
+(defn long-bytes [long]
+  (byte-array [(integer-byte long 7) (integer-byte long 6) (integer-byte long 5) (integer-byte long 4) (integer-byte long 3) (integer-byte long 2) (integer-byte long 1) (integer-byte long 0)]))
 
 (defn get-data-bytes [data]
   (cond
-    (instance? String data) (.getBytes data default-character-encoding)
-    (instance? Integer data) (integer-bytes data)
-    true data))
+    (= Byte/TYPE (.getComponentType (class data))) data
+    (string? data) (.getBytes data default-character-encoding)
+    (instance? Integer data) (integer-bytes data) ; Must use instance since integer? includes Longs as well as Integers.
+    (instance? Long data) (long-bytes data)
+    :else (throw (RuntimeException. (str "Do not know how to convert a " (class data) " to a byte array.")))))
 
 (defn get-data-str [data]
   (if (instance? String data)
