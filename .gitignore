@@ -11,4 +11,5 @@ target
 *~
 /.lein-deps-sum
 /target
+pom.xml.asc
 /bin
