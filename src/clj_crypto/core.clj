@@ -1,7 +1,6 @@
 (ns clj-crypto.core
   (:refer-clojure :exclude [format])
-  (:require [clojure.tools.logging :as logging]
-            [clojure.java.io])
+  (:require [clojure.java.io])
   (:import [org.apache.commons.codec.binary Base64]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
            [java.security Key KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature KeyStore]
