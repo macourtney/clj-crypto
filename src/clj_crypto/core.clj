@@ -6,6 +6,7 @@
            [java.security Key KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature KeyStore]
            [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
            [java.util Random]
+           [java.io InputStream]
            [javax.crypto Cipher]
            [java.nio ByteBuffer]))
 
@@ -133,12 +134,18 @@
   { :public-key (get-public-key-map (.getPublic key-pair))
     :private-key (get-private-key-map (.getPrivate key-pair))})
 
-(defn get-key-pair-pkcs12 [pkcs12file ks-password entry-alias]
-  (with-open [fio (clojure.java.io/input-stream pkcs12file)]
-    (let [ks (KeyStore/getInstance "PKCS12" "BC")]
-      (do (.load ks fio (.toCharArray ks-password))
-          (KeyPair. (-> ks (.getCertificate entry-alias) (.getPublicKey))
-                    (-> ks (.getKey entry-alias (.toCharArray ks-password))))))))
+(defn get-key-pair-pkcs12 [keystore ks-password entry-alias]
+  (cond
+    (instance? String keystore) 
+      (with-open [fio (clojure.java.io/input-stream keystore)] 
+        (get-key-pair-pkcs12 fio ks-password entry-alias))
+    (instance? InputStream keystore) 
+      (let [ks (KeyStore/getInstance "PKCS12" "BC")]
+        (do (.load ks keystore (.toCharArray ks-password))
+            (KeyPair. (-> ks (.getCertificate entry-alias) (.getPublicKey))
+                      (-> ks (.getKey entry-alias (.toCharArray ks-password))))))
+    :else 
+      (throw (RuntimeException. (str "Do not know how to load keystore from a " (class keystore))))))
 
 (defn decode-public-key [public-key-map]
   (when public-key-map
