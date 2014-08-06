@@ -1,9 +1,9 @@
 (ns clj-crypto.core
   (:refer-clojure :exclude [format])
-  (:require [clojure.tools.logging :as logging])
+  (:require [clojure.java.io])
   (:import [org.apache.commons.codec.binary Base64]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
-           [java.security Key KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature]
+           [java.security Key KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature KeyStore]
            [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
            [java.util Random]
            [javax.crypto Cipher]
@@ -132,6 +132,13 @@
 (defn get-key-pair-map [key-pair]
   { :public-key (get-public-key-map (.getPublic key-pair))
     :private-key (get-private-key-map (.getPrivate key-pair))})
+
+(defn get-key-pair-pkcs12 [pkcs12file ks-password entry-alias]
+  (with-open [fio (clojure.java.io/input-stream pkcs12file)]
+    (let [ks (KeyStore/getInstance "PKCS12" "BC")]
+      (do (.load ks fio (.toCharArray ks-password))
+          (KeyPair. (-> ks (.getCertificate entry-alias) (.getPublicKey))
+                    (-> ks (.getKey entry-alias (.toCharArray ks-password))))))))
 
 (defn decode-public-key [public-key-map]
   (when public-key-map
