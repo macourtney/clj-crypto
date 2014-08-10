@@ -1,27 +1,39 @@
 (ns clj-crypto.core
   (:refer-clojure :exclude [format])
-  (:require [clojure.tools.logging :as logging])
+  (:require [clojure.java.io])
   (:import [org.apache.commons.codec.binary Base64]
            [org.bouncycastle.jce.provider BouncyCastleProvider]
-           [java.security KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature]
+           [java.security Key KeyFactory KeyPair KeyPairGenerator MessageDigest PrivateKey PublicKey Security Signature KeyStore]
            [java.security.spec PKCS8EncodedKeySpec X509EncodedKeySpec]
            [java.util Random]
-           [javax.crypto Cipher]))
+           [java.io InputStream]
+           [javax.crypto Cipher]
+           [java.nio ByteBuffer]))
 
 (def default-algorithm "RSA")
 (def default-signature-algorithm "SHA1withRSA")
 (def default-transformation "RSA/None/NoPadding")
 (def default-provider "BC") ; Bouncy Castle provider.
 (def default-character-encoding "UTF8")
+(def default-key-size 2048)
 
 (def default-encrypt-password-algorithm "SHA-256")
 (def default-encrypt-password-n 1000)
 
 (Security/addProvider (new BouncyCastleProvider))
 
-(defn generate-key-pair []
-  (let [key-pair-generator (KeyPairGenerator/getInstance default-algorithm)]
-    (.initialize key-pair-generator 1024)
+(defn encode-base64 [bindata]
+  (Base64/encodeBase64 bindata))
+
+(defn encode-base64-as-str [bindata]
+  (Base64/encodeBase64String bindata))
+
+ (defn decode-base64 [^String base64str]
+   (Base64/decodeBase64 base64str))
+
+(defn generate-key-pair [& {:keys [key-size algorithm]}]
+  (let [key-pair-generator (KeyPairGenerator/getInstance (or algorithm default-algorithm))]
+    (.initialize key-pair-generator (or key-size default-key-size))
     (.generateKeyPair key-pair-generator)))
 
 (defn private-key [key-pair]
@@ -51,7 +63,7 @@
 (defn format [key]
   (.getFormat key))
 
-(defn create-cipher 
+(defn create-cipher
   ([] (create-cipher default-transformation default-provider))
   ([transformation] (create-cipher transformation default-provider))
   ([transformation provider]
@@ -65,9 +77,11 @@
 
 (defn integer-bytes [integer]
   (byte-array [(integer-byte integer 3) (integer-byte integer 2) (integer-byte integer 1) (integer-byte integer 0)]))
-  
-(defn long-bytes [long]
-  (byte-array [(integer-byte long 7) (integer-byte long 6) (integer-byte long 5) (integer-byte long 4) (integer-byte long 3) (integer-byte long 2) (integer-byte long 1) (integer-byte long 0)]))
+
+(defn long-bytes [l]
+  (let [buf (ByteBuffer/allocate (/ Long/SIZE 8))]
+    (.putLong buf l)
+    (.array buf)))
 
 (defn get-data-bytes [data]
   (cond
@@ -91,7 +105,7 @@
   (.init cipher mode key)
   (.doFinal cipher (get-data-bytes data)))
 
-(defn encrypt 
+(defn encrypt
   ([key data] (encrypt key data (create-cipher)))
   ([key data cipher]
     (do-cipher cipher Cipher/ENCRYPT_MODE (get-encrypt-key key) data)))
@@ -101,7 +115,7 @@
     (.getPrivate key)
     key))
 
-(defn decrypt 
+(defn decrypt
   ([key data] (decrypt key data (create-cipher)))
   ([key data cipher]
     (get-data-str (do-cipher cipher Cipher/DECRYPT_MODE (get-decrypt-key key) data))))
@@ -119,6 +133,19 @@
 (defn get-key-pair-map [key-pair]
   { :public-key (get-public-key-map (.getPublic key-pair))
     :private-key (get-private-key-map (.getPrivate key-pair))})
+
+(defn get-key-pair-pkcs12 [keystore ks-password entry-alias]
+  (cond
+    (instance? String keystore) 
+      (with-open [fio (clojure.java.io/input-stream keystore)] 
+        (get-key-pair-pkcs12 fio ks-password entry-alias))
+    (instance? InputStream keystore) 
+      (let [ks (KeyStore/getInstance "PKCS12" "BC")]
+        (do (.load ks keystore (.toCharArray ks-password))
+            (KeyPair. (-> ks (.getCertificate entry-alias) (.getPublicKey))
+                      (-> ks (.getKey entry-alias (.toCharArray ks-password))))))
+    :else 
+      (throw (RuntimeException. (str "Do not know how to load keystore from a " (class keystore))))))
 
 (defn decode-public-key [public-key-map]
   (when public-key-map
