@@ -137,7 +137,7 @@
     :private-key (get-private-key-map (.getPrivate key-pair))})
 
 (defn get-key-pair-pkcs12
-  ([keystore ks-password entry-alias] (get-key-pair-pkcs12 default-provider))
+  ([keystore ks-password entry-alias] (get-key-pair-pkcs12 keystore ks-password entry-alias default-provider))
   ([keystore ks-password entry-alias provider]
    (cond
      (instance? String keystore)
