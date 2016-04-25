@@ -12,8 +12,10 @@
 
 (def default-algorithm "RSA")
 (def default-signature-algorithm "SHA1withRSA")
+(def sha256-signature-algorithm "SHA256withRSA")
 (def default-transformation "RSA/None/NoPadding")
 (def default-provider "BC") ; Bouncy Castle provider.
+(def sun-provider "SunJSSE")
 (def default-character-encoding "UTF8")
 (def default-key-size 2048)
 
@@ -134,18 +136,20 @@
   { :public-key (get-public-key-map (.getPublic key-pair))
     :private-key (get-private-key-map (.getPrivate key-pair))})
 
-(defn get-key-pair-pkcs12 [keystore ks-password entry-alias]
-  (cond
-    (instance? String keystore) 
-      (with-open [fio (clojure.java.io/input-stream keystore)] 
-        (get-key-pair-pkcs12 fio ks-password entry-alias))
-    (instance? InputStream keystore) 
-      (let [ks (KeyStore/getInstance "PKCS12" "BC")]
-        (do (.load ks keystore (.toCharArray ks-password))
-            (KeyPair. (-> ks (.getCertificate entry-alias) (.getPublicKey))
-                      (-> ks (.getKey entry-alias (.toCharArray ks-password))))))
-    :else 
-      (throw (RuntimeException. (str "Do not know how to load keystore from a " (class keystore))))))
+(defn get-key-pair-pkcs12
+  ([keystore ks-password entry-alias] (get-key-pair-pkcs12 default-provider))
+  ([keystore ks-password entry-alias provider]
+   (cond
+     (instance? String keystore)
+     (with-open [fio (clojure.java.io/input-stream keystore)]
+       (get-key-pair-pkcs12 fio ks-password entry-alias))
+     (instance? InputStream keystore)
+     (let [ks (KeyStore/getInstance "PKCS12" provider)]
+       (do (.load ks keystore (.toCharArray ks-password))
+           (KeyPair. (-> ks (.getCertificate entry-alias) (.getPublicKey))
+                     (-> ks (.getKey entry-alias (.toCharArray ks-password))))))
+     :else
+     (throw (RuntimeException. (str "Do not know how to load keystore from a " (class keystore)))))))
 
 (defn decode-public-key [public-key-map]
   (when public-key-map
@@ -162,19 +166,23 @@
 
 ; Signing
 
-(defn sign [key data]
-  (let [private-key (as-private-key key)
-        signature (Signature/getInstance default-signature-algorithm default-provider)]
-    (.initSign signature private-key)
-    (.update signature (get-data-bytes data))
-    (.sign signature)))
+(defn sign
+  ([key data] (sign key data default-signature-algorithm default-provider))
+  ([key data algorithm provider]
+   (let [private-key (as-private-key key)
+         signature (Signature/getInstance algorithm provider)]
+     (.initSign signature private-key)
+     (.update signature (get-data-bytes data))
+     (.sign signature))))
 
-(defn verify-signature [key data signature]
-  (let [public-key (as-public-key key)
-        signature-obj (Signature/getInstance default-signature-algorithm default-provider)]
-    (.initVerify signature-obj public-key)
-    (.update signature-obj (get-data-bytes data))
-    (.verify signature-obj (get-data-bytes signature))))
+(defn verify-signature
+  ([key data signature] (verify-signature key data signature default-signature-algorithm default-provider))
+  ([key data signature algorithm provider]
+   (let [public-key (as-public-key key)
+         signature-obj (Signature/getInstance algorithm provider)]
+     (.initVerify signature-obj public-key)
+     (.update signature-obj (get-data-bytes data))
+     (.verify signature-obj (get-data-bytes signature)))))
 
 ; Basic password protection
 (defn
